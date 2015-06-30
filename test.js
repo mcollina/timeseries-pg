@@ -3,7 +3,6 @@
 var test = require('tape')
 var build = require('./')
 var withConn = require('with-conn-pg')
-var Joi = require('joi')
 var callback = require('callback-stream')
 
 var connString = 'postgres://localhost/timeseries_test'

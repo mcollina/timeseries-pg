@@ -41,10 +41,6 @@ function timeseries (connString) {
       execPut,
       returnFirst
     ]),
-    get: withConn(connString, [
-      execGet,
-      returnFirst
-    ]),
     createReadStream: createReadStream
   }
 
@@ -80,11 +76,7 @@ function timeseries (connString) {
   }
 
   function returnFirst (result, callback) {
-    callback(err, result ? result.rows[0] : null)
-  }
-
-  function execGet (conn, id, callback) {
-    conn.query(getOne, [id], callback)
+    callback(null, result ? result.rows[0] : null)
   }
 
   function createReadStream (opts) {
