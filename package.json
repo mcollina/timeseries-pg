@@ -1,0 +1,44 @@
+{
+  "name": "@matteo.collina/timeseries-pg",
+  "version": "0.0.1",
+  "description": "Manage a timeseries using a module, with node and postgres",
+  "main": "timeseries.js",
+  "scripts": {
+    "lint": "standard",
+    "test": "tape test.js | faucet"
+  },
+  "precommit": [
+    "lint",
+    "test"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcollina/timeseries-pg.git"
+  },
+  "keywords": [
+    "asset",
+    "manage"
+  ],
+  "author": "Matteo Collina <hello@matteocollina.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mcollina/timeseries-pg/issues"
+  },
+  "homepage": "https://github.com/mcollina/timeseries-pg#readme",
+  "devDependencies": {
+    "faucet": "0.0.1",
+    "pre-commit": "^1.0.10",
+    "standard": "^4.3.3",
+    "tape": "^4.0.0"
+  },
+  "dependencies": {
+    "callback-stream": "^1.0.2",
+    "joi": "^6.5.0",
+    "pg": "^4.4.0",
+    "pg-query-stream": "^0.7.0",
+    "pump": "^1.0.0",
+    "sql": "^0.52.0",
+    "through2": "^2.0.0",
+    "with-conn-pg": "^1.0.0"
+  }
+}

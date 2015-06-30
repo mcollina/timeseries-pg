@@ -1,0 +1,6 @@
+CREATE TABLE datapoints(
+  id SERIAL PRIMARY KEY,
+  value DOUBLE PRECISION,
+  timestamp TIMESTAMP DEFAULT NOW(),
+  asset VARCHAR(40)
+)
