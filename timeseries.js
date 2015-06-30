@@ -95,19 +95,19 @@ function timeseries (connString) {
       .from(sqlDataPoint)
 
     if (opts.asset) {
-      builder = builder.where(
+      builder.where(
         sqlDataPoint.asset.equals(opts.asset)
       )
     }
 
     if (opts.from) {
-      builder = builder.where(
+      builder.where(
         sqlDataPoint.timestamp.gte(opts.from)
       )
     }
 
     if (opts.to) {
-      builder = builder.where(
+      builder.where(
         sqlDataPoint.timestamp.lte(opts.to)
       )
     }
