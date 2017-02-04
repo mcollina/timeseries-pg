@@ -2,10 +2,11 @@
 
 var test = require('tape')
 var build = require('./')
-var withConn = require('with-conn-pg')
+var WithConn = require('with-conn-pg')
 var callback = require('callback-stream')
 
-var connString = 'postgres://localhost/timeseries_test'
+var connString = 'postgres://localhost/timeseries_tests'
+var withConn = WithConn(connString)
 var schemaQuery = 'select column_name, data_type, character_maximum_length from INFORMATION_SCHEMA.COLUMNS where table_name = \'datapoints\' ORDER BY column_name'
 var assets
 
@@ -14,7 +15,7 @@ test('create schema', function (t) {
   assets.dropSchema(function () {
     assets.createSchema(function (err) {
       t.error(err, 'no error')
-      withConn(connString, function (conn, done) {
+      withConn(function (conn, done) {
         t.error(err, 'no error')
 
         conn.query(schemaQuery, function (err, result) {
@@ -48,7 +49,6 @@ test('can insert a data point', function (t) {
     delete result.id
     delete result.timestamp
     t.deepEqual(result, expected, 'matches')
-    withConn.end()
     t.end()
   })
 })
@@ -66,7 +66,6 @@ test('can insert a data point with a timestamp', function (t) {
     delete result.timestamp
     delete expected.timestamp
     t.deepEqual(result, expected, 'matches')
-    withConn.end()
     t.end()
   })
 })
@@ -79,7 +78,6 @@ test('cannot insert an asset without a value', function (t) {
     t.ok(err, 'insert errors')
     t.equal(err.name, 'ValidationError', 'error type matches')
     t.equal(err.details[0].message, '"value" is required', 'validation error matches')
-    withConn.end()
     t.end()
   })
 })
@@ -92,7 +90,6 @@ test('cannot insert an asset without an asset', function (t) {
     t.ok(err, 'insert errors')
     t.equal(err.name, 'ValidationError', 'error type matches')
     t.equal(err.details[0].message, '"asset" is required', 'validation error matches')
-    withConn.end()
     t.end()
   })
 })
@@ -109,7 +106,6 @@ test('can get datapoints', function (t) {
     }).pipe(callback({ objectMode: true }, function (err, results) {
       t.error(err, 'no error')
       t.deepEqual(results, [expected], 'matches')
-      withConn.end()
       t.end()
     }))
   })
@@ -145,10 +141,15 @@ test('can get datapoints in an interval', function (t) {
         }).pipe(callback({ objectMode: true }, function (err, results) {
           t.error(err, 'no error')
           t.deepEqual(results, [expected2], 'matches')
-          withConn.end()
           t.end()
         }))
       })
     })
   })
+})
+
+test('close off everything', function (t) {
+  withConn.end()
+  assets.end()
+  t.end()
 })

@@ -2,7 +2,7 @@
 
 var fs = require('fs')
 var path = require('path')
-var withConn = require('with-conn-pg')
+var WithConn = require('with-conn-pg')
 var Joi = require('joi')
 var sql = require('sql')
 var pump = require('pump')
@@ -30,18 +30,19 @@ function readQuery (file) {
 }
 
 function timeseries (connString) {
-
-  var pipeReadStream = withConn(connString, _createReadStream)
+  var withConn = WithConn(connString)
+  var pipeReadStream = withConn(_createReadStream)
 
   return {
     joiSchema: schema,
-    createSchema: withConn(connString, createSchema),
-    dropSchema: withConn(connString, dropSchema),
-    put: withConn(connString, [
+    createSchema: withConn(createSchema),
+    dropSchema: withConn(dropSchema),
+    put: withConn([
       execPut,
       returnFirst
     ]),
-    createReadStream: createReadStream
+    createReadStream: createReadStream,
+    end: withConn.end.bind(withConn)
   }
 
   function createSchema (conn, callback) {
