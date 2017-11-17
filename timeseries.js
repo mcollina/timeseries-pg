@@ -3,7 +3,9 @@
 var fs = require('fs')
 var path = require('path')
 var WithConn = require('with-conn-pg')
-var Joi = require('joi')
+var createError = require('http-errors')
+var Ajv = require('ajv')
+var ajv = new Ajv()
 var sql = require('sql')
 var pump = require('pump')
 var QueryStream = require('pg-query-stream')
@@ -14,11 +16,27 @@ var insertWithDate = readQuery('insert-with-date.sql')
 var through = require('through2')
 
 var schema = {
-  id: Joi.number().positive(),
-  asset: Joi.string().required(),
-  value: Joi.number().required(),
-  timestamp: Joi.date()
+  type: 'object',
+  required: ['asset', 'value'],
+  properties: {
+    id: {
+      type: 'number'
+    },
+    asset: {
+      type: 'string',
+      minLength: 1
+    },
+    value: {
+      type: 'number'
+    },
+    timestamp: {
+      type: 'string',
+      strFormat: 'date-time'
+    }
+  }
 }
+
+var validate = ajv.compile(schema)
 
 var sqlDataPoint = sql.define({
   name: 'datapoints',
@@ -34,7 +52,7 @@ function timeseries (connString) {
   var pipeReadStream = withConn(_createReadStream)
 
   return {
-    joiSchema: schema,
+    jsonSchema: schema,
     createSchema: withConn(createSchema),
     dropSchema: withConn(dropSchema),
     put: withConn([
@@ -54,14 +72,14 @@ function timeseries (connString) {
   }
 
   function execPut (conn, datapoint, callback) {
-    var valResult = Joi.validate(datapoint, schema)
+    var valid = validate(datapoint)
     var toExec = insertWithoutDate
 
-    if (valResult.error) {
-      return callback(valResult.error)
+    if (!valid) {
+      var err = new createError.UnprocessableEntity()
+      err.details = validate.errors
+      return callback(err)
     }
-
-    datapoint = valResult.value
 
     var args = [
       datapoint.value,
@@ -70,18 +88,26 @@ function timeseries (connString) {
 
     if (datapoint.timestamp) {
       toExec = insertWithDate
-      args.push(datapoint.timestamp)
+      args.push(new Date(datapoint.timestamp))
     }
 
     conn.query(toExec, args, callback)
   }
 
   function returnFirst (result, callback) {
-    callback(null, result ? result.rows[0] : null)
+    var value
+    if (result) {
+      value = result.rows[0]
+      value.timestamp = value.timestamp.toISOString()
+    }
+    callback(null, value)
   }
 
   function createReadStream (opts) {
-    var stream = through.obj()
+    var stream = through.obj(function (chunk, enc, cb) {
+      chunk.timestamp = chunk.timestamp.toISOString()
+      cb(null, chunk)
+    })
     pipeReadStream(stream, opts, function (err) {
       if (err) {
         stream.emit('error', err)
@@ -103,13 +129,13 @@ function timeseries (connString) {
 
     if (opts.from) {
       builder.where(
-        sqlDataPoint.timestamp.gte(opts.from)
+        sqlDataPoint.timestamp.gte(new Date(opts.from))
       )
     }
 
     if (opts.to) {
       builder.where(
-        sqlDataPoint.timestamp.lte(opts.to)
+        sqlDataPoint.timestamp.lte(new Date(opts.to))
       )
     }
 

@@ -1,14 +1,20 @@
 'use strict'
 
-var test = require('tape')
+var tap = require('tap')
+var test = tap.test
+var tearDown = tap.tearDown
 var build = require('./')
 var WithConn = require('with-conn-pg')
-var callback = require('callback-stream')
+var callbackStream = require('callback-stream')
 
 var connString = 'postgres://localhost/timeseries_tests'
 var withConn = WithConn(connString)
 var schemaQuery = 'select column_name, data_type, character_maximum_length from INFORMATION_SCHEMA.COLUMNS where table_name = \'datapoints\' ORDER BY column_name'
 var assets
+
+tearDown(function () {
+  assets.end()
+})
 
 test('create schema', function (t) {
   assets = build(connString)
@@ -45,7 +51,7 @@ test('can insert a data point', function (t) {
     t.error(err, 'no error')
     t.ok(result.id, 'it has an id')
     t.ok(result.timestamp, 'it has a timestamp')
-    t.ok(result.timestamp instanceof Date, 'timestamp is a Date')
+    t.deepEqual(new Date(result.timestamp).toISOString(), result.timestamp, 'timestamp is a Date')
     delete result.id
     delete result.timestamp
     t.deepEqual(result, expected, 'matches')
@@ -57,11 +63,11 @@ test('can insert a data point with a timestamp', function (t) {
   var expected = {
     value: 42.42,
     asset: 'anassetid',
-    timestamp: new Date()
+    timestamp: new Date().toISOString()
   }
   assets.put(expected, function (err, result) {
     t.error(err, 'no error')
-    t.equal(expected.timestamp.getTime(), result.timestamp.getTime(), 'time matches')
+    t.equal(expected.timestamp, result.timestamp, 'time matches')
     delete result.id
     delete result.timestamp
     delete expected.timestamp
@@ -76,8 +82,8 @@ test('cannot insert an asset without a value', function (t) {
   }
   assets.put(expected, function (err, result) {
     t.ok(err, 'insert errors')
-    t.equal(err.name, 'ValidationError', 'error type matches')
-    t.equal(err.details[0].message, '"value" is required', 'validation error matches')
+    t.equal(err.name, 'UnprocessableEntityError', 'error type matches')
+    t.equal(err.details[0].message, 'should have required property \'value\'', 'validation error matches')
     t.end()
   })
 })
@@ -88,8 +94,8 @@ test('cannot insert an asset without an asset', function (t) {
   }
   assets.put(expected, function (err, result) {
     t.ok(err, 'insert errors')
-    t.equal(err.name, 'ValidationError', 'error type matches')
-    t.equal(err.details[0].message, '"asset" is required', 'validation error matches')
+    t.equal(err.name, 'UnprocessableEntityError', 'error type matches')
+    t.equal(err.details[0].message, 'should have required property \'asset\'', 'validation error matches')
     t.end()
   })
 })
@@ -103,7 +109,7 @@ test('can get datapoints', function (t) {
     t.error(err, 'no error')
     assets.createReadStream({
       asset: 'myasset'
-    }).pipe(callback({ objectMode: true }, function (err, results) {
+    }).pipe(callbackStream({ objectMode: true }, function (err, results) {
       t.error(err, 'no error')
       t.deepEqual(results, [expected], 'matches')
       t.end()
@@ -115,17 +121,17 @@ test('can get datapoints in an interval', function (t) {
   var toWrite1 = {
     value: 42,
     asset: 'myasset',
-    timestamp: new Date(Date.parse('1984-06-26'))
+    timestamp: new Date(Date.parse('1984-06-26')).toISOString()
   }
   var toWrite2 = {
     value: 24,
     asset: 'myasset',
-    timestamp: new Date(Date.parse('2003-06-26'))
+    timestamp: new Date(Date.parse('2003-06-26')).toISOString()
   }
   var toWrite3 = {
     value: 42,
     asset: 'myasset',
-    timestamp: new Date(Date.parse('2015-06-26'))
+    timestamp: new Date(Date.parse('2015-06-26')).toISOString()
   }
   assets.put(toWrite1, function (err, expected1) {
     t.error(err, 'no error')
@@ -136,9 +142,9 @@ test('can get datapoints in an interval', function (t) {
 
         assets.createReadStream({
           asset: 'myasset',
-          from: new Date(Date.parse('2000-06-26')),
-          to: new Date(Date.parse('2005-06-26'))
-        }).pipe(callback({ objectMode: true }, function (err, results) {
+          from: new Date(Date.parse('2000-06-26')).toISOString(),
+          to: new Date(Date.parse('2005-06-26')).toISOString()
+        }).pipe(callbackStream({ objectMode: true }, function (err, results) {
           t.error(err, 'no error')
           t.deepEqual(results, [expected2], 'matches')
           t.end()
@@ -146,10 +152,4 @@ test('can get datapoints in an interval', function (t) {
       })
     })
   })
-})
-
-test('close off everything', function (t) {
-  withConn.end()
-  assets.end()
-  t.end()
 })
